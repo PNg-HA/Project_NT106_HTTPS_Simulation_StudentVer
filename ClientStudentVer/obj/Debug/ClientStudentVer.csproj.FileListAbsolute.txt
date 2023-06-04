@@ -1,0 +1,11 @@
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\bin\Debug\ClientStudentVer.exe.config
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\bin\Debug\ClientStudentVer.exe
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\bin\Debug\ClientStudentVer.pdb
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.csproj.AssemblyReference.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.Form1.resources
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.Properties.Resources.resources
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.csproj.GenerateResource.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.csproj.CoreCompileInputs.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.exe
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.pdb
+D:\Move\UIT\HK4\LTM\Project\Student_version\ClientStudentVer\obj\Debug\ClientStudentVer.StudentInfo.resources

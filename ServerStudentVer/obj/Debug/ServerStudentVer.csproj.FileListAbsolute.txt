@@ -1,0 +1,13 @@
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\bin\Debug\ServerStudentVer.exe.config
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\bin\Debug\ServerStudentVer.exe
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\bin\Debug\ServerStudentVer.pdb
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\bin\Debug\Newtonsoft.Json.dll
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\bin\Debug\Newtonsoft.Json.xml
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.csproj.AssemblyReference.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.Properties.Resources.resources
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.Server.resources
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.csproj.GenerateResource.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.csproj.CoreCompileInputs.cache
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.csproj.CopyComplete
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.exe
+D:\Move\UIT\HK4\LTM\Project\Student_version\ServerStudentVer\obj\Debug\ServerStudentVer.pdb
