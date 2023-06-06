@@ -34,7 +34,7 @@ namespace ServerStudentVer
             // 
             // tbx_log
             // 
-            this.tbx_log.BackColor = System.Drawing.SystemColors.GradientActiveCaption;
+            this.tbx_log.BackColor = System.Drawing.SystemColors.ButtonHighlight;
             this.tbx_log.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tbx_log.Location = new System.Drawing.Point(13, 30);
             this.tbx_log.Multiline = true;
@@ -48,6 +48,7 @@ namespace ServerStudentVer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.ClientSize = new System.Drawing.Size(800, 450);
             this.Controls.Add(this.tbx_log);
             this.Name = "Server";

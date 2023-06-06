@@ -27,10 +27,11 @@ namespace ServerStudentVer
         static string CertPath = "..\\resources\\QuanNN.crt";
         static string PrivateKeyCertPath = "..\\resources\\key.pfx";
         static string originFile = @"D:\Move\Resource\File.txt";
-        static string encrFolder = @"D:\Move\EncryptFolder\";
+        static string encrFolder = @"..\\resources\";
         static string decrFolder = @"D:\Move\DecryptFolder\";
         static string encryptedFile = @"File.enc";
-        static string EncryptedSymmectricKeyPath = @"..\\resources\\key.enc";
+        static string EncryptedSymmectricKeyPath = @"..\\resources\\File.enc";
+        static string decryptedFile = @"..\resources\File.txt";
         // Load 2 certs (1 file .pfx for priv key and 1 file .crt for public key)
         X509Certificate2 cert;
         X509Certificate2 cert2;
@@ -53,7 +54,7 @@ namespace ServerStudentVer
             {
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
-
+                aes.Padding = PaddingMode.ANSIX923;
                 // Create byte arrays to get the length of
                 // the encrypted key and IV.
                 // These values were stored as 4 bytes each
@@ -111,7 +112,7 @@ namespace ServerStudentVer
                         // from the FileSteam of the encrypted
                         // file (inFs) into the FileStream
                         // for the decrypted file (outFs).
-                        using (FileStream outFs = new FileStream(outFile, FileMode.Create))
+                        using (FileStream outFs = new FileStream(decryptedFile, FileMode.Create))
                         {
 
                             int count = 0;
@@ -135,8 +136,8 @@ namespace ServerStudentVer
                                 }
                                 while (count > 0);
 
-                                outStreamDecrypted.FlushFinalBlock();
-                                outStreamDecrypted.Close();
+                                // outStreamDecrypted.Flush();
+                                // outStreamDecrypted.Close();
                             }
                             outFs.Close();
                         }
@@ -165,18 +166,23 @@ namespace ServerStudentVer
         private void HandleClient(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
-            byte[] buffer = new byte[1024];
-            SendCert(client);
+            /*byte[] buffer = new byte[1024];
+            SendCert(client);*/
 
             // ReceiveClientKey
-            buffer = new byte[1024];
-            int b = stream.Read(buffer, 0, buffer.Length);
-            string message = Encoding.ASCII.GetString(buffer, 0, b);
+            byte[] buffer = new byte[552];
+            int b = stream.Read(buffer, 0, buffer.Length); 
+            
+            /*string message = Encoding.UTF8.GetString(buffer, 0, b);
 
             // Save the client key to local folder
-            File.WriteAllBytes(EncryptedSymmectricKeyPath, buffer);
+            File.WriteAllBytes(EncryptedSymmectricKeyPath, buffer);*/
 
-            HandleClientEncryptedKey(client, cert.GetRSAPrivateKey());
+            FileStream fs = new FileStream(EncryptedSymmectricKeyPath, FileMode.Create);
+            //stream.CopyTo(fs);
+            fs.Write(buffer, 0, buffer.Length);
+            fs.Close();
+            DecryptFile(EncryptedSymmectricKeyPath, cert.GetRSAPrivateKey());
             while (true)
             {
                 try
@@ -267,6 +273,7 @@ namespace ServerStudentVer
             Byte[] CertByte = Encoding.ASCII.GetBytes(sr.ReadToEnd());
             NetworkStream stream = client.GetStream();
             stream.Write(CertByte, 0, CertByte.Length);
+            stream.Flush();
         }
         private void HandleMessage(string message, TcpClient client)
         {

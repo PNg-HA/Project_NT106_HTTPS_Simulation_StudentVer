@@ -26,10 +26,10 @@ namespace ClientStudentVer
         // Cert-related folders and components
         static string CertSavedPath = @"..\\resources\\QuanNN.crt";
         static string originFile = @"D:\Move\Resource\File.txt";
-        static string encrFolder = @"D:\Move\EncryptFolder\";
+        static string encrFolder = @"..\\resources\";
         static string decrFolder = @"D:\Move\DecryptFolder\";
         static string encryptedFile = @"File.enc";
-        static string EncryptedSymmetricKeyPath = @"..\\resources\\key.enc";
+        static string EncryptedSymmetricKeyPath = @"..\\resources\\File.enc";
         string cert_thumbprint = "95266410248877b4db407a0449e6e18516cca8e8";  // QuanNN-cert
         X509Certificate2 cert, cert2;
         public Form1()
@@ -85,12 +85,14 @@ namespace ClientStudentVer
         private void SendEncryptedKey()
         {
 
-            StreamReader sr = new StreamReader(EncryptedSymmetricKeyPath); // create a stream reader file from OpenFileDialog
+            // StreamReader sr = new StreamReader(EncryptedSymmetricKeyPath); // create a stream reader file from OpenFileDialog
 
-            // Send the signature to server
-            Byte[] CertByte = Encoding.ASCII.GetBytes(sr.ReadToEnd());
+            // Send the key to server
+            FileStream fs = new FileStream(EncryptedSymmetricKeyPath, FileMode.Open);
+            fs.CopyTo(stream);
+            /*Byte[] CertByte = Encoding.UTF8.GetBytes(sr.ReadToEnd());
             stream.Write(CertByte, 0, CertByte.Length);
-            stream.Flush();
+            stream.Flush();*/
 
             Print_log("Send symmetric key to server.");
         }
@@ -403,25 +405,26 @@ namespace ClientStudentVer
                 Print_log("Right cert.");
             var publicKey = (RSA)cert.PublicKey.Key;    // Get public key
             EncryptFile(originFile, publicKey);
-            DecryptFile(encryptedFile, cert2.GetRSAPrivateKey());
+            //DecryptFile(encryptedFile, cert2.GetRSAPrivateKey());
             // CreateSymmetricKey (publicKey);
         }
         private void ReceiveCert()
         {
-            byte[] certbuffer = new byte[1998];
+            /*byte[] certbuffer = new byte[1998];
             stream.Read(certbuffer, 0, certbuffer.Length);
             Print_log("Receive the cert.");
             // Save the server cert to local folder
             File.WriteAllBytes(CertSavedPath, certbuffer);
+            stream.Flush();*/
             HandleServerCert();
-            stream.Flush();
+            
         }
         private void ReceiveMessage()
         {
             stream = tcpClient.GetStream();
             string response = "";
             ReceiveCert();
-            //SendEncryptedKey();
+            SendEncryptedKey();
             while (true)
             {
                 // receive cert from server
