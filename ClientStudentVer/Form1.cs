@@ -25,21 +25,21 @@ namespace ClientStudentVer
 
         // Cert-related folders and components
         static string CertSavedPath = @"..\\resources\\QuanNN.crt";
-        static string originFile = @"D:\Move\Resource\File.txt";
+        static string originFile = @"..\\resources\\File.txt";
         static string encrFolder = @"..\\resources\";
-        static string decrFolder = @"D:\Move\DecryptFolder\";
-        static string encryptedFile = @"File.enc";
-        static string EncryptedSymmetricKeyPath = @"..\\resources\\File.enc";
+        static string decrFolder = @"..\\resources\";
+        // static string encryptedFile = @"File.enc";
+        static string EncryptedSymmetricKeyPath = @"..\\resources\\Key.enc";
         string cert_thumbprint = "95266410248877b4db407a0449e6e18516cca8e8";  // QuanNN-cert
-        X509Certificate2 cert, cert2;
+        X509Certificate2 cert;
+        static byte[] ClientSessionKey;
         public Form1()
         {
             InitializeComponent();
             Buttons_NotClicked();
             EstablishTCPConnection();
-            cert2 = new X509Certificate2("D:\\Move\\UIT\\HK4\\LTM\\Project\\project_HTTPS-main\\project_HTTPS-main\\resources\\key.pfx", "", X509KeyStorageFlags.Exportable);
         }
-        private static void CreateSymmetricKey(RSA rsaPublicKey)
+        private static void CreateSymmetricKey(RSA rsaPublicKey, string keyAES)
         {
             using (Aes aes = Aes.Create())
             {
@@ -47,12 +47,14 @@ namespace ClientStudentVer
                 // symetric encryption of the data.
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
+                //aes.Key = Encoding.UTF8.
                 using (ICryptoTransform transform = aes.CreateEncryptor())
                 {
                     // Create symmetric key (or session key)
                     RSAPKCS1KeyExchangeFormatter keyFormatter = new RSAPKCS1KeyExchangeFormatter(rsaPublicKey);
+                    ClientSessionKey = new byte[aes.Key.Length];
+                    ClientSessionKey = aes.Key;
                     byte[] keyEncrypted = keyFormatter.CreateKeyExchange(aes.Key, aes.GetType());
-
                     // Create byte arrays to contain
                     // the length values of the key and IV.
                     byte[] LenK = new byte[4];
@@ -82,21 +84,15 @@ namespace ClientStudentVer
                 }
             }
         }
-        private void SendEncryptedKey()
+        private void SendEncryptedFile(string encryptedFile)
         {
-
-            // StreamReader sr = new StreamReader(EncryptedSymmetricKeyPath); // create a stream reader file from OpenFileDialog
-
             // Send the key to server
-            FileStream fs = new FileStream(EncryptedSymmetricKeyPath, FileMode.Open);
+            FileStream fs = new FileStream(encryptedFile, FileMode.Open);
             fs.CopyTo(stream);
-            /*Byte[] CertByte = Encoding.UTF8.GetBytes(sr.ReadToEnd());
-            stream.Write(CertByte, 0, CertByte.Length);
-            stream.Flush();*/
-
-            Print_log("Send symmetric key to server.");
+            fs.Close();
+            Print_log("Send " + encryptedFile + " to server.");
         }
-        private static void EncryptFile(string inFile, RSA rsaPublicKey)
+        private static void EncryptFile(string inFile, RSA rsaPublicKey, string keyAES)
         {
             using (Aes aes = Aes.Create())
             {
@@ -104,11 +100,13 @@ namespace ClientStudentVer
                 // symetric encryption of the data.
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
+                aes.Key = ClientSessionKey; // Encoding.UTF8.GetBytes(keyAES);
                 using (ICryptoTransform transform = aes.CreateEncryptor())
                 {
                     // Create symmetric key (or session key)
                     RSAPKCS1KeyExchangeFormatter keyFormatter = new RSAPKCS1KeyExchangeFormatter(rsaPublicKey);
-                    byte[] keyEncrypted = keyFormatter.CreateKeyExchange(aes.Key, aes.GetType());
+                    
+                    byte[] keyEncrypted =  keyFormatter.CreateKeyExchange(aes.Key, aes.GetType());
 
                     // Create byte arrays to contain
                     // the length values of the key and IV.
@@ -397,34 +395,36 @@ namespace ClientStudentVer
         private void HandleServerCert()
         {
             // Load server cert (1 file .pfx for priv key and 1 file .crt for public key)
-            
             cert = new X509Certificate2(CertSavedPath);
 
             // "Validate" the cert
             if (cert.Thumbprint.ToLower().ToString() == cert_thumbprint)
                 Print_log("Right cert.");
             var publicKey = (RSA)cert.PublicKey.Key;    // Get public key
-            EncryptFile(originFile, publicKey);
+
+            // EncryptFile(originFile, publicKey);
             //DecryptFile(encryptedFile, cert2.GetRSAPrivateKey());
-            // CreateSymmetricKey (publicKey);
+            CreateSymmetricKey (publicKey, "12345678123456781234567812345678");
+            EncryptFile(@"..\resources\File.txt", publicKey, "12345678123456781234567812345678");
         }
         private void ReceiveCert()
         {
-            /*byte[] certbuffer = new byte[1998];
+            byte[] certbuffer = new byte[1998];
             stream.Read(certbuffer, 0, certbuffer.Length);
             Print_log("Receive the cert.");
+
             // Save the server cert to local folder
             File.WriteAllBytes(CertSavedPath, certbuffer);
-            stream.Flush();*/
-            HandleServerCert();
-            
+            stream.Flush();
         }
-        private void ReceiveMessage()
+        private void StartClient()
         {
             stream = tcpClient.GetStream();
             string response = "";
             ReceiveCert();
-            SendEncryptedKey();
+            HandleServerCert();
+            SendEncryptedFile(EncryptedSymmetricKeyPath);
+            SendEncryptedFile(@"..\resources\File.enc");
             while (true)
             {
                 // receive cert from server
@@ -496,10 +496,10 @@ namespace ClientStudentVer
 
                 }*/
 
-                Task.Run(() => ReceiveMessage());
+                Task.Run(() => StartClient());
 
                 // Replacement
-                /*Thread ctThread = new Thread(ReceiveMessage);
+                /*Thread ctThread = new Thread(StartClient);
                 ctThread.Start();*/
             }
             catch (Exception ex)
