@@ -22,7 +22,8 @@ namespace ServerStudentVer
         TcpListener listener;
         List<TcpClient> clients;
         static Dictionary<string, byte[]> client_sessionKeys ;   // string: Client-IPEndPoint, byte: AES key
-        
+        static Dictionary<string, byte[]> client_sessionIVs;     // string: Client-IPEndPoint, byte: AES IV
+        static byte[] ClientSessionKey, ClientSessionIV;
         // Cert-related folders and components
         static string CertPath = "..\\resources\\QuanNN.crt";
         static string PrivateKeyCertPath = "..\\resources\\key.pfx";
@@ -39,6 +40,7 @@ namespace ServerStudentVer
         {
             clients = new List<TcpClient>();
             client_sessionKeys = new Dictionary<string, byte[]>();
+            client_sessionIVs = new Dictionary<string, byte[]>();
             listener = new TcpListener(IPAddress.Any, int.Parse("8089"));
             InitializeComponent();
             EstablishTCPConnections();
@@ -54,7 +56,6 @@ namespace ServerStudentVer
             {
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
-
                 // Create byte arrays to get the length of
                 // the encrypted key and IV.
                 // These values were stored as 4 bytes each
@@ -100,16 +101,19 @@ namespace ServerStudentVer
                     inFs.Seek(8 + lenK, SeekOrigin.Begin);
                     inFs.Read(IV, 0, lenIV);
                     Directory.CreateDirectory(decrFolder);
+
+                    
                     // Use RSA
                     // to decrypt the Aes key.
                     byte[] KeyDecrypted =  rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
+
                     //MessageBox.Show(Encoding.UTF8.GetString(KeyDecrypted));
                     // MessageBox.Show(Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]));
                     if (Encoding.UTF8.GetString(KeyDecrypted) == Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]))
                     {
                         MessageBox.Show("Right");
                         // Decrypt the key.
-                        using (ICryptoTransform transform = aes.CreateDecryptor(KeyDecrypted, IV))
+                        using (ICryptoTransform transform = aes.CreateDecryptor(client_sessionKeys[client.Client.RemoteEndPoint.ToString()], client_sessionIVs[client.Client.RemoteEndPoint.ToString()]))   //KeyDecrypted, IV))
                         {
 
                             // Decrypt the cipher text from
@@ -285,7 +289,7 @@ namespace ServerStudentVer
             {
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
-
+                
                 // Create byte arrays to get the length of
                 // the encrypted key and IV.
                 // These values were stored as 4 bytes each
@@ -332,7 +336,14 @@ namespace ServerStudentVer
                     // Use RSA
                     // to decrypt the Aes key.
                     byte[] KeyDecrypted = rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
-                    client_sessionKeys.Add(client.Client.RemoteEndPoint.ToString(), KeyDecrypted);
+
+                    ClientSessionKey = new byte[aes.Key.Length];
+                    ClientSessionKey = KeyDecrypted;
+                    ClientSessionIV = new byte[IV.Length];
+                    ClientSessionIV = IV;
+
+                    client_sessionKeys.Add(client.Client.RemoteEndPoint.ToString(), ClientSessionKey);
+                    client_sessionIVs.Add(client.Client.RemoteEndPoint.ToString(), ClientSessionIV);
                     if (KeyDecrypted == client_sessionKeys[client.Client.RemoteEndPoint.ToString()])
                         AddMessageToLog("1 right key");
                     //MessageBox.Show(Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]));

@@ -32,7 +32,7 @@ namespace ClientStudentVer
         static string EncryptedSymmetricKeyPath = @"..\\resources\\Key.enc";
         string cert_thumbprint = "95266410248877b4db407a0449e6e18516cca8e8";  // QuanNN-cert
         X509Certificate2 cert;
-        static byte[] ClientSessionKey;
+        static byte[] ClientSessionKey, ClientIV;
         public Form1()
         {
             InitializeComponent();
@@ -54,6 +54,8 @@ namespace ClientStudentVer
                     RSAPKCS1KeyExchangeFormatter keyFormatter = new RSAPKCS1KeyExchangeFormatter(rsaPublicKey);
                     ClientSessionKey = new byte[aes.Key.Length];
                     ClientSessionKey = aes.Key;
+                    ClientIV = new byte[aes.IV.Length];
+                    ClientIV = aes.IV;
                     byte[] keyEncrypted = keyFormatter.CreateKeyExchange(aes.Key, aes.GetType());
                     // Create byte arrays to contain
                     // the length values of the key and IV.
@@ -101,6 +103,7 @@ namespace ClientStudentVer
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
                 aes.Key = ClientSessionKey; // Encoding.UTF8.GetBytes(keyAES);
+                aes.IV = ClientIV;
                 using (ICryptoTransform transform = aes.CreateEncryptor())
                 {
                     // Create symmetric key (or session key)
