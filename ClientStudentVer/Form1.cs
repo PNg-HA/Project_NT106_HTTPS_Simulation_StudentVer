@@ -353,7 +353,31 @@ namespace ClientStudentVer
         }
         private void SignInButton_Click(object sender, EventArgs e)
         {
-            SignInButton_Clicked();
+            bool invalidflag = false;
+            char[] invalidChars =
+            { ' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+            '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '=',
+            '{', '[', '}', ']', '\\', '|', ':', ';', '"', '\'', '<', '>', '?', ',', '.', '/',
+            'á', 'à', 'ả', 'ã', 'ạ','Á', 'À', 'Ả', 'Ã', 'Ạ','í', 'ì', 'ỉ', 'ĩ', 'ị','Í', 'Ì', 'Ỉ', 'Ĩ', 'Ị',
+            'ó', 'ò', 'ỏ', 'õ', 'ọ', 'Ó', 'Ò', 'Ỏ', 'Õ', 'Ọ', 'ú', 'ù', 'ủ', 'ũ', 'ụ','Ú', 'Ù', 'Ủ', 'Ũ', 'Ụ',
+            'é', 'è', 'ẻ', 'ẽ', 'ẹ','É', 'È', 'Ẻ', 'Ẽ', 'Ẹ','ă','ắ', 'ặ', 'ẳ', 'ẵ', 'ằ','Ă','Ắ', 'Ặ', 'Ẳ', 'Ẵ', 'Ằ',
+            'â', 'ấ', 'ậ', 'Â', 'Ấ', 'Ậ','ế', 'ề', 'ê', 'ể', 'ễ', 'ệ', 'Ế', 'Ề', 'Ê', 'Ể', 'Ễ', 'Ệ',
+            'ơ', 'ớ', 'ờ', 'ở', 'ỡ','ợ','Ơ', 'Ớ', 'Ờ', 'Ở', 'Ỡ', 'Ợ','ô', 'ố', 'ồ', 'ổ', 'ỗ', 'ộ', 'Ô', 'Ố', 'Ồ', 'Ổ', 'Ỗ', 'Ộ',
+            'ư', 'ứ', 'ừ', 'ử', 'ữ', 'ự','Ư', 'Ứ', 'Ừ', 'Ử', 'Ữ', 'Ự', 'đ', 'Đ'};
+            foreach (char ch in usernameTextBox.Text)
+            {
+                if (invalidChars.Contains(ch))
+                {
+                    invalidflag = true;
+                    MessageBox.Show("Invalid characters existed in username!");
+                    usernameTextBox.Clear();
+                    break;
+                }
+            }
+            if (invalidflag == false)
+            {
+                SignInButton_Clicked();
+            }
         }
 
         private void SignUpButton_Click(object sender, EventArgs e)

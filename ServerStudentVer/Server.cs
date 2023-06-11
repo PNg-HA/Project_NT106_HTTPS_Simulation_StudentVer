@@ -23,6 +23,7 @@ namespace ServerStudentVer
         List<TcpClient> clients;
         static Dictionary<string, byte[]> client_sessionKeys ;   // string: Client-IPEndPoint, byte: AES key
         static Dictionary<string, byte[]> client_sessionIVs;     // string: Client-IPEndPoint, byte: AES IV
+        static Dictionary<string, string> client_Path;
         static byte[] ClientSessionKey, ClientSessionIV;
         // Cert-related folders and components
         static string CertPath = "..\\resources\\QuanNN.crt";
@@ -41,6 +42,7 @@ namespace ServerStudentVer
             clients = new List<TcpClient>();
             client_sessionKeys = new Dictionary<string, byte[]>();
             client_sessionIVs = new Dictionary<string, byte[]>();
+            client_Path = new Dictionary<string, string>();
             listener = new TcpListener(IPAddress.Any, int.Parse("8089"));
             InitializeComponent();
             EstablishTCPConnections();
@@ -49,6 +51,8 @@ namespace ServerStudentVer
         }
         private static void DecryptFile(TcpClient client, string inFile, RSA rsaPrivateKey)
         {
+            // Create the client path
+            string ClientEndPoint = client_Path[client.Client.RemoteEndPoint.ToString()];
 
             // Create instance of Aes for
             // symetric decryption of the data.
@@ -68,7 +72,7 @@ namespace ServerStudentVer
 
                 // Use FileStream objects to read the encrypted
                 // file (inFs) and save the decrypted file (outFs).
-                using (FileStream inFs = new FileStream(@"..\\resources\File.enc", FileMode.Open))
+                using (FileStream inFs = new FileStream(@"..\resources\" + ClientEndPoint +"_File.enc", FileMode.Open))
                 {
 
                     inFs.Seek(0, SeekOrigin.Begin);
@@ -120,7 +124,7 @@ namespace ServerStudentVer
                             // from the FileSteam of the encrypted
                             // file (inFs) into the FileStream
                             // for the decrypted file (outFs).
-                            using (FileStream outFs = new FileStream(@"..\resources\File.txt", FileMode.Create))
+                            using (FileStream outFs = new FileStream(@"..\resources\"+ ClientEndPoint + "_File.txt", FileMode.Create))
                             {
 
                                 int count = 0;
@@ -178,13 +182,18 @@ namespace ServerStudentVer
             NetworkStream stream = client.GetStream();
             SendCert(client);
 
+            // Add Client Path to the Client_Path list
+            IPEndPoint iPEndPoint = (IPEndPoint)client.Client.RemoteEndPoint;
+            string ClientEndPoint = iPEndPoint.Address.ToString() + '.' + iPEndPoint.Port.ToString();
+            client_Path.Add(client.Client.RemoteEndPoint.ToString(), ClientEndPoint);
+
             // Receive Client Key
             byte[] KeyBuffer = new byte[1024];
             int bufferLen = stream.Read(KeyBuffer, 0, KeyBuffer.Length);
             AddMessageToLog("The key of " + client.Client.RemoteEndPoint.ToString() + "is received.");
 
-            // Save the client key to local folder
-            FileStream fs = new FileStream(@"..\resources\Key.enc", FileMode.Create);
+            // Save the client key to client_IPEndPoint's folder
+            FileStream fs = new FileStream(@"..\resources\"+ ClientEndPoint+"_Key.enc", FileMode.Create);
             fs.Write(KeyBuffer, 0, bufferLen);
             fs.Close();
             AddMessageToLog("Save the encrypted key to a folder.");
@@ -197,7 +206,7 @@ namespace ServerStudentVer
             AddMessageToLog("The file of " + client.Client.RemoteEndPoint.ToString() + "is received.");
 
             // Save the client file to local folder
-            fs = new FileStream(@"..\resources\File.enc", FileMode.Create);
+            fs = new FileStream(@"..\resources\" + ClientEndPoint + "_File.enc", FileMode.Create);
             fs.Write(FileBuffer, 0, bufferLen);
             fs.Close();
             AddMessageToLog("Save the encrypted file to a folder.");
@@ -283,6 +292,9 @@ namespace ServerStudentVer
         }
         private void HandleClientEncryptedKey(TcpClient client, RSA rsaPrivateKey)
         {
+            // Create the client path
+            string ClientEndPoint = client_Path[client.Client.RemoteEndPoint.ToString()];
+
             // Create instance of Aes for
             // symetric decryption of the data.
             using (Aes aes = Aes.Create())
@@ -299,7 +311,8 @@ namespace ServerStudentVer
 
                 // Use FileStream objects to read the encrypted
                 // semetric key (inFs) and save the decrypted file (outFs).
-                using (FileStream inFs = new FileStream(EncryptedSymmectricKeyPath, FileMode.Open))
+                
+                using (FileStream inFs = new FileStream(@"..\resources\" + ClientEndPoint + "_Key.enc", FileMode.Open))
                 {
                     
                     inFs.Seek(0, SeekOrigin.Begin);
