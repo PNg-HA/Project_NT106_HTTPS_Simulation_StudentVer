@@ -24,7 +24,6 @@ namespace ServerStudentVer
         static Dictionary<string, byte[]> client_sessionKeys ;   // string: Client-IPEndPoint, byte: AES key
         static Dictionary<string, byte[]> client_sessionIVs;     // string: Client-IPEndPoint, byte: AES IV
         static Dictionary<string, string> client_Path;
-        static byte[] ClientSessionKey, ClientSessionIV;
         // Cert-related folders and components
         static string CertPath = "..\\resources\\QuanNN.crt";
         static string PrivateKeyCertPath = "..\\resources\\key.pfx";
@@ -49,6 +48,89 @@ namespace ServerStudentVer
             cert = new X509Certificate2(PrivateKeyCertPath, "", X509KeyStorageFlags.Exportable);
             cert2 = new X509Certificate2(CertPath);
         }
+        private static void EncryptFile(TcpClient client, string inFile, RSA rsaPublicKey)
+        {
+            // Client file path
+            string ClientEndPoint = client_Path[client.Client.RemoteEndPoint.ToString()];
+            using (Aes aes = Aes.Create())
+            {
+                // Create instance of Aes for
+                // symetric encryption of the data.
+                aes.KeySize = 256;
+                aes.Mode = CipherMode.CBC;
+                aes.Key = client_sessionKeys[client.Client.RemoteEndPoint.ToString()]; // Encoding.UTF8.GetBytes(keyAES);
+                aes.IV = client_sessionIVs[client.Client.RemoteEndPoint.ToString()];
+                using (ICryptoTransform transform = aes.CreateEncryptor())
+                {
+                    // Create symmetric key (or session key)
+                    RSAPKCS1KeyExchangeFormatter keyFormatter = new RSAPKCS1KeyExchangeFormatter(rsaPublicKey);
+
+                    byte[] keyEncrypted = keyFormatter.CreateKeyExchange(aes.Key, aes.GetType());
+
+                    // Create byte arrays to contain
+                    // the length values of the key and IV.
+                    byte[] LenK = new byte[4];
+                    byte[] LenIV = new byte[4];
+
+                    int lKey = keyEncrypted.Length;
+                    LenK = BitConverter.GetBytes(lKey);
+                    int lIV = aes.IV.Length;
+                    LenIV = BitConverter.GetBytes(lIV);
+
+                    // Write the following to the FileStream
+                    // for the encrypted file (outFs):
+                    // - length of the key
+                    // - length of the IV
+                    // - ecrypted key
+                    // - the IV
+                    // - the encrypted cipher content
+
+                    int startFileName = inFile.LastIndexOf("\\") + 1;
+                    // Change the file's extension to ".enc"
+                    string outFile = encrFolder + inFile.Substring(startFileName, inFile.LastIndexOf(".") - startFileName) + ".enc";
+                    Directory.CreateDirectory(encrFolder);
+
+                    using (FileStream outFs = new FileStream(outFile, FileMode.Create))
+                    {
+
+                        outFs.Write(LenK, 0, 4);
+                        outFs.Write(LenIV, 0, 4);
+                        outFs.Write(keyEncrypted, 0, lKey);
+                        outFs.Write(aes.IV, 0, lIV);
+
+                        // Now write the cipher text using
+                        // a CryptoStream for encrypting.
+                        using (CryptoStream outStreamEncrypted = new CryptoStream(outFs, transform, CryptoStreamMode.Write))
+                        {
+
+                            // By encrypting a chunk at
+                            // a time, you can save memory
+                            // and accommodate large files.
+                            int count = 0;
+                            // blockSizeBytes can be any arbitrary size.
+                            int blockSizeBytes = aes.BlockSize / 8;
+                            byte[] data = new byte[blockSizeBytes];
+                            int bytesRead = 0;
+
+                            using (FileStream inFs = new FileStream(inFile, FileMode.Open))
+                            {
+                                do
+                                {
+                                    count = inFs.Read(data, 0, blockSizeBytes);
+                                    outStreamEncrypted.Write(data, 0, count);
+                                    bytesRead += count;
+                                }
+                                while (count > 0);
+                                inFs.Close();
+                            }
+                            outStreamEncrypted.FlushFinalBlock();
+                            outStreamEncrypted.Close();
+                        }
+                        outFs.Close();
+                    }
+                }
+            }
+        }
         private static void DecryptFile(TcpClient client, string inFile, RSA rsaPrivateKey)
         {
             // Create the client path
@@ -67,7 +149,7 @@ namespace ServerStudentVer
                 byte[] LenK = new byte[4];
                 byte[] LenIV = new byte[4];
 
-                // Construct the file name for the decrypted file.
+                // Unused: Construct the file name for the decrypted file. 
                 string outFile = decrFolder + inFile.Substring(0, inFile.LastIndexOf(".")) + ".txt";
 
                 // Use FileStream objects to read the encrypted
@@ -111,11 +193,8 @@ namespace ServerStudentVer
                     // to decrypt the Aes key.
                     byte[] KeyDecrypted =  rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
 
-                    //MessageBox.Show(Encoding.UTF8.GetString(KeyDecrypted));
-                    // MessageBox.Show(Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]));
                     if (Encoding.UTF8.GetString(KeyDecrypted) == Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]))
                     {
-                        MessageBox.Show("Right");
                         // Decrypt the key.
                         using (ICryptoTransform transform = aes.CreateDecryptor(client_sessionKeys[client.Client.RemoteEndPoint.ToString()], client_sessionIVs[client.Client.RemoteEndPoint.ToString()]))   //KeyDecrypted, IV))
                         {
@@ -177,6 +256,14 @@ namespace ServerStudentVer
                 }
             }
         }
+        private void SendEncryptedFile(string encryptedFile, NetworkStream stream)
+        {
+            // Send the key to server
+            FileStream fs = new FileStream(encryptedFile, FileMode.Open);
+            fs.CopyTo(stream);
+            fs.Close();
+            AddMessageToLog("Send " + encryptedFile + " to client.");
+        }
         private void HandleClient(TcpClient client)
         {
             NetworkStream stream = client.GetStream();
@@ -202,7 +289,7 @@ namespace ServerStudentVer
 
             // Receive Client File
             byte[] FileBuffer = new byte[2000];
-            bufferLen = stream.Read(FileBuffer, 0, FileBuffer.Length);
+            /*bufferLen = stream.Read(FileBuffer, 0, FileBuffer.Length);
             AddMessageToLog("The file of " + client.Client.RemoteEndPoint.ToString() + "is received.");
 
             // Save the client file to local folder
@@ -211,82 +298,42 @@ namespace ServerStudentVer
             fs.Close();
             AddMessageToLog("Save the encrypted file to a folder.");
 
-            DecryptFile(client, encryptedFile, cert.GetRSAPrivateKey());
+            DecryptFile (client, encryptedFile, cert.GetRSAPrivateKey());
+
+            // Create anhpnh.enc
+            var publicKey = (RSA)cert2.PublicKey.Key;    // Get public key
+            EncryptFile(client, @"..\resources\anhpnh.txt", publicKey);
+
+            // Send anhpnh.enc
+            SendEncryptedFile(@"..\resources\anhpnh.enc", stream);*/
             while (true)
             {
                 try
                 {
-                    /*int b = stream.Read(buffer, 0, buffer.Length);
-                    string message = Encoding.ASCII.GetString(buffer, 0, b);*/
-                    
-                    // HandleMessage(message, client);
+                    // Receive Client File
+                    bufferLen = stream.Read(FileBuffer, 0, FileBuffer.Length);
+                    AddMessageToLog("The file of " + client.Client.RemoteEndPoint.ToString() + "is received.");
+
+                    // Save the client file to local folder
+                    fs = new FileStream(@"..\resources\" + ClientEndPoint + "_File.enc", FileMode.Create);
+                    fs.Write(FileBuffer, 0, bufferLen);
+                    fs.Close();
+                    AddMessageToLog("Save the encrypted file to a folder.");
+
+                    DecryptFile(client, encryptedFile, cert.GetRSAPrivateKey());
+
+                    // Create anhpnh.enc
+                    var publicKey = (RSA)cert2.PublicKey.Key;    // Get public key
+                    EncryptFile(client, @"..\resources\anhpnh.txt", publicKey);
+
+                    // Send anhpnh.enc
+                    SendEncryptedFile(@"..\resources\anhpnh.enc", stream);
                 }
                 catch (Exception ex)
                 {
                     AddMessageToLog("Error handling client: " + ex.Message);
                     clients.Remove(client);
                     break;
-                }
-            }
-        }
-        private void TestHandleClientEncryptedKey(TcpClient client, RSA rsaPrivateKey)
-        {
-            // Create instance of Aes for
-            // symetric decryption of the data.
-            using (Aes aes = Aes.Create())
-            {
-                aes.KeySize = 256;
-                aes.Mode = CipherMode.CBC;
-
-                // Create byte arrays to get the length of
-                // the encrypted key and IV.
-                // These values were stored as 4 bytes each
-                // at the beginning of the encrypted package.
-                byte[] LenK = new byte[4];
-                byte[] LenIV = new byte[4];
-
-                // Use FileStream objects to read the encrypted
-                // semetric key (inFs) and save the decrypted file (outFs).
-                using (FileStream inFs = new FileStream(EncryptedSymmectricKeyPath, FileMode.Open))
-                {
-
-                    inFs.Seek(0, SeekOrigin.Begin);
-                    inFs.Seek(0, SeekOrigin.Begin);
-                    inFs.Read(LenK, 0, 3);
-                    inFs.Seek(4, SeekOrigin.Begin);
-                    inFs.Read(LenIV, 0, 3);
-
-                    // Convert the lengths to integer values.
-                    int lenK = BitConverter.ToInt32(LenK, 0);
-                    int lenIV = BitConverter.ToInt32(LenIV, 0);
-
-                    // Determine the start position of
-                    // the cipher text (startC)
-                    // and its length(lenC).
-                    int startC = lenK + lenIV + 8;
-                    int lenC = (int)inFs.Length - startC;
-
-                    // Create the byte arrays for
-                    // the encrypted Aes key,
-                    // the IV, and the cipher text.
-                    byte[] KeyEncrypted = new byte[lenK];
-                    byte[] IV = new byte[lenIV];
-
-                    // Extract the key and IV
-                    // starting from index 8
-                    // after the length values.
-                    inFs.Seek(8, SeekOrigin.Begin);
-                    inFs.Read(KeyEncrypted, 0, lenK);
-                    inFs.Seek(8 + lenK, SeekOrigin.Begin);
-                    inFs.Read(IV, 0, lenIV);
-                    Directory.CreateDirectory(decrFolder);
-
-                    // Use RSA
-                    // to decrypt the Aes key.
-                    byte[] KeyDecrypted = rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
-                    if (KeyDecrypted == client_sessionKeys[client.Client.RemoteEndPoint.ToString()])
-                        AddMessageToLog("Right key");
-                    inFs.Close();
                 }
             }
         }
@@ -350,15 +397,15 @@ namespace ServerStudentVer
                     // to decrypt the Aes key.
                     byte[] KeyDecrypted = rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
 
-                    ClientSessionKey = new byte[aes.Key.Length];
+                    byte[] ClientSessionKey = new byte[aes.Key.Length];
                     ClientSessionKey = KeyDecrypted;
-                    ClientSessionIV = new byte[IV.Length];
+                    byte[] ClientSessionIV = new byte[IV.Length];
                     ClientSessionIV = IV;
 
                     client_sessionKeys.Add(client.Client.RemoteEndPoint.ToString(), ClientSessionKey);
                     client_sessionIVs.Add(client.Client.RemoteEndPoint.ToString(), ClientSessionIV);
                     if (KeyDecrypted == client_sessionKeys[client.Client.RemoteEndPoint.ToString()])
-                        AddMessageToLog("1 right key");
+                        AddMessageToLog("Decrypt right client key");
                     //MessageBox.Show(Encoding.UTF8.GetString(client_sessionKeys[client.Client.RemoteEndPoint.ToString()]));
                     // tbx_log.AppendText(client_sessionKeys[client.Client.RemoteEndPoint.ToString()].ToString());
                     inFs.Close();
@@ -532,6 +579,16 @@ namespace ServerStudentVer
             {
                 AddMessageToLog("Error starting server: " + ex.Message);
             }
+        }
+        public static string Base64Encode(string plainText)
+        {
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
+        }
+        public static string Base64Decode(string base64EncodedData)
+        {
+            var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);
+            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
         }
     }
 }

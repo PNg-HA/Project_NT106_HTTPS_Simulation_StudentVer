@@ -22,7 +22,7 @@ namespace ClientStudentVer
         TcpClient tcpClient;
         List<KeyValuePair<string, int>> serverIP_PortList = new List<KeyValuePair<string, int>>();
         NetworkStream stream;
-
+        RSA PublicKey;
         // Cert-related folders and components
         static string CertSavedPath = @"..\\resources\\QuanNN.crt";
         static string originFile = @"..\\resources\\File.txt";
@@ -39,7 +39,7 @@ namespace ClientStudentVer
             Buttons_NotClicked();
             EstablishTCPConnection();
         }
-        private static void CreateSymmetricKey(RSA rsaPublicKey, string keyAES)
+        private static void CreateSymmetricKey(RSA rsaPublicKey)
         {
             using (Aes aes = Aes.Create())
             {
@@ -94,7 +94,7 @@ namespace ClientStudentVer
             fs.Close();
             Print_log("Send " + encryptedFile + " to server.");
         }
-        private static void EncryptFile(string inFile, RSA rsaPublicKey, string keyAES)
+        private static void EncryptFile(string inFile, RSA rsaPublicKey)
         {
             using (Aes aes = Aes.Create())
             {
@@ -102,7 +102,7 @@ namespace ClientStudentVer
                 // symetric encryption of the data.
                 aes.KeySize = 256;
                 aes.Mode = CipherMode.CBC;
-                aes.Key = ClientSessionKey; // Encoding.UTF8.GetBytes(keyAES);
+                aes.Key = ClientSessionKey;
                 aes.IV = ClientIV;
                 using (ICryptoTransform transform = aes.CreateEncryptor())
                 {
@@ -176,7 +176,8 @@ namespace ClientStudentVer
             }
         }
 
-        private static void DecryptFile(string inFile, RSA rsaPrivateKey)
+        // Decrypt a file using a private key.
+        private static void DecryptFile(string inFile)
         {
 
             // Create instance of Aes for
@@ -192,7 +193,7 @@ namespace ClientStudentVer
                 // at the beginning of the encrypted package.
                 byte[] LenK = new byte[4];
                 byte[] LenIV = new byte[4];
-
+                string decrFolder = @"..\resources\";
                 // Construct the file name for the decrypted file.
                 string outFile = decrFolder + inFile.Substring(0, inFile.LastIndexOf(".")) + ".txt";
 
@@ -233,10 +234,10 @@ namespace ClientStudentVer
                     Directory.CreateDirectory(decrFolder);
                     // Use RSA
                     // to decrypt the Aes key.
-                    byte[] KeyDecrypted = rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
-
+                    //byte[] KeyDecrypted = ClientSessionKey; //rsaPrivateKey.Decrypt(KeyEncrypted, RSAEncryptionPadding.Pkcs1);
+                    
                     // Decrypt the key.
-                    using (ICryptoTransform transform = aes.CreateDecryptor(KeyDecrypted, IV))
+                    using (ICryptoTransform transform = aes.CreateDecryptor(ClientSessionKey, ClientIV))
                     {
 
                         // Decrypt the cipher text from
@@ -376,6 +377,23 @@ namespace ClientStudentVer
             }
             if (invalidflag == false)
             {
+                string b64EncodedUsernamePwd = Base64Encode(usernameTextBox.Text + '|' + passTextBox.Text);
+                usernameTextBox.Text = Base64Decode(b64EncodedUsernamePwd);
+
+                string reqHeader = "GET /" + " HTTP/1.1\r\n" // request line
+                                  // request headers
+                               + "Host: " + tcpClient.Client.RemoteEndPoint.ToString() + "\r\n"
+                               + "Connection: keep-alive \r\n"
+                               + "Upgrade-Insecure-Requests: 1\r\n"
+                               + "User-Agent: C# client\r\n"
+                               + "Authorization: Basic " + b64EncodedUsernamePwd + "\r\n"
+                               + "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n"
+                               + "Accept-Encoding: gzip, deflate\r\n"
+                               + "Accept-Language: en-US,en;q=0.9\r\n"
+                               + "\r\n";
+                File.WriteAllText(@"..\resources\GET.txt", reqHeader);
+                EncryptFile(@"..\resources\GET.txt", PublicKey);
+                SendEncryptedFile(@"..\resources\GET.enc");
                 SignInButton_Clicked();
             }
         }
@@ -409,7 +427,8 @@ namespace ClientStudentVer
         }
 
 
-        //     END OF CONTROL METHOD  //////////////////
+        //     END OF CONTROL METHOD  ///////////////////////////////////////////////////
+
         private void Print_log(string log)
         {
             if (LogTextBox.InvokeRequired)
@@ -419,6 +438,15 @@ namespace ClientStudentVer
             }
             LogTextBox.AppendText(log + Environment.NewLine);
         }
+        private void PrintResponse(string msg)
+        {
+            if (RespHeadTextBox.InvokeRequired)
+            {
+                RespHeadTextBox.Invoke(new Action<string>(PrintResponse), msg);
+                return;
+            }
+            RespHeadTextBox.AppendText(msg + Environment.NewLine);
+        }
         private void HandleServerCert()
         {
             // Load server cert (1 file .pfx for priv key and 1 file .crt for public key)
@@ -427,12 +455,10 @@ namespace ClientStudentVer
             // "Validate" the cert
             if (cert.Thumbprint.ToLower().ToString() == cert_thumbprint)
                 Print_log("Right cert.");
-            var publicKey = (RSA)cert.PublicKey.Key;    // Get public key
 
-            // EncryptFile(originFile, publicKey);
-            //DecryptFile(encryptedFile, cert2.GetRSAPrivateKey());
-            CreateSymmetricKey (publicKey, "12345678123456781234567812345678");
-            EncryptFile(@"..\resources\File.txt", publicKey, "12345678123456781234567812345678");
+            PublicKey = (RSA)cert.PublicKey.Key;    // Get public key
+            CreateSymmetricKey (PublicKey);
+            EncryptFile(@"..\resources\File.txt", PublicKey);
         }
         private void ReceiveCert()
         {
@@ -444,23 +470,42 @@ namespace ClientStudentVer
             File.WriteAllBytes(CertSavedPath, certbuffer);
             stream.Flush();
         }
+
+        private void ReceiveSave_File(string outFile)
+        {
+            // Receive Server File
+            byte[] FileBuffer = new byte[2000];
+            int bufferLen = stream.Read(FileBuffer, 0, FileBuffer.Length);
+            Print_log("The file of server is received.");
+
+            // Save the client file to local folder
+            FileStream fs = new FileStream(@"..\resources\" + outFile, FileMode.Create);
+            fs.Write(FileBuffer, 0, bufferLen);
+            fs.Close();
+            Print_log("Save the encrypted file to a folder.");
+        }
         private void StartClient()
         {
             stream = tcpClient.GetStream();
             string response = "";
             ReceiveCert();
             HandleServerCert();
-            SendEncryptedFile(EncryptedSymmetricKeyPath);
-            SendEncryptedFile(@"..\resources\File.enc");
+
+            SendEncryptedFile(EncryptedSymmetricKeyPath);    // Send encrypted key
+            /*SendEncryptedFile(@"..\resources\File.enc");
+
+            ReceiveSave_File("anhpnh.enc");
+            DecryptFile("anhpnh.enc");
+            Print_log("Decrypt file successfullly.");
+            LoadFile(@"..\resources\" + "anhpnh.txt");*/
             while (true)
             {
                 // receive cert from server
                 //stream.Read(certbuffer, 0, certbuffer.Length);
-
-                // Save the server cert to local folder
-                
-                //File.WriteAllBytes(CertSavedPath, certbuffer);
-                
+                ReceiveSave_File("index.enc");
+                DecryptFile("index.enc");
+                Print_log("Decrypt file successfullly.");
+                LoadFile(@"..\resources\" + "index.txt");
                 // convert response from byte to string
                 /*response = Encoding.ASCII.GetString(buffer, 0, b);
                 MessageBox.Show(response);*/
@@ -481,7 +526,6 @@ namespace ClientStudentVer
 
                 // Create tcp client
                 tcpClient = new TcpClient();
-
                 // connect to the server socket
                 tcpClient.Connect(ServerIP, ServerPort);
                 stream = tcpClient.GetStream();
@@ -529,13 +573,31 @@ namespace ClientStudentVer
                 /*Thread ctThread = new Thread(StartClient);
                 ctThread.Start();*/
             }
+            catch (SocketException)
+            {
+                Print_log("Unable to connect to server's socket.");
+            }
             catch (Exception ex)
             {
                 Print_log(ex.ToString());
             }
             // CheckCertificate();
         }
-
+        private void LoadFile (string inFile)
+        {
+            StreamReader sr = new StreamReader(inFile);
+            PrintResponse(sr.ReadToEnd());
+        }
+        private string Base64Encode(string plainText)
+        {
+            var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            return System.Convert.ToBase64String(plainTextBytes);
+        }
+        public static string Base64Decode(string base64EncodedData)
+        {
+            var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);
+            return System.Text.Encoding.UTF8.GetString(base64EncodedBytes);
+        }
 
 
 

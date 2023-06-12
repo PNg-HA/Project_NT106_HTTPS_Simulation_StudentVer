@@ -104,6 +104,7 @@ namespace ClientStudentVer
             this.passTextBox.Size = new System.Drawing.Size(240, 34);
             this.passTextBox.TabIndex = 7;
             this.passTextBox.Text = "Mật khẩu";
+            this.passTextBox.UseSystemPasswordChar = true;
             this.passTextBox.Click += new System.EventHandler(this.passTextBox_Click);
             this.passTextBox.Leave += new System.EventHandler(this.passTextBox_Leave);
             // 
@@ -238,7 +239,7 @@ namespace ClientStudentVer
             // 
             this.label8.AutoSize = true;
             this.label8.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label8.Location = new System.Drawing.Point(467, 345);
+            this.label8.Location = new System.Drawing.Point(455, 342);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(60, 29);
             this.label8.TabIndex = 34;
