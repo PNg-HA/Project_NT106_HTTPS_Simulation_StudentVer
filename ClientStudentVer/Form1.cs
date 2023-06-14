@@ -33,6 +33,7 @@ namespace ClientStudentVer
         string cert_thumbprint = "95266410248877b4db407a0449e6e18516cca8e8";  // QuanNN-cert
         X509Certificate2 cert;
         static byte[] ClientSessionKey, ClientIV;
+        static string credentials;
         public Form1()
         {
             InitializeComponent();
@@ -300,6 +301,11 @@ namespace ClientStudentVer
             if (passTextBox.Text == "")
             {
                 passTextBox.Text = "Mật khẩu";
+                passTextBox.UseSystemPasswordChar = false;
+            }
+            else
+            {
+                passTextBox.UseSystemPasswordChar = true;
             }
         }
 
@@ -377,27 +383,35 @@ namespace ClientStudentVer
             }
             if (invalidflag == false)
             {
-                string b64EncodedUsernamePwd = Base64Encode(usernameTextBox.Text + '|' + passTextBox.Text);
-                usernameTextBox.Text = Base64Decode(b64EncodedUsernamePwd);
-
-                string reqHeader = "GET /" + " HTTP/1.1\r\n" // request line
+                credentials = Base64Encode(usernameTextBox.Text + '|' + passTextBox.Text);
+                string reqBody = "{\r\n  "
+                                        + usernameTextBox.Text + ": " + passTextBox.Text + "\r\n"
+                                        + "}\r\n";
+                string reqHeader = "POST /" + " HTTP/1.1\r\n" // request line
                                   // request headers
                                + "Host: " + tcpClient.Client.RemoteEndPoint.ToString() + "\r\n"
+                               + "Content-type: application/json\r\n"
+                               + "Content-length: " + reqBody.Length + "\r\n"
                                + "Connection: keep-alive \r\n"
                                + "Upgrade-Insecure-Requests: 1\r\n"
                                + "User-Agent: C# client\r\n"
-                               + "Authorization: Basic " + b64EncodedUsernamePwd + "\r\n"
+                               + "Authorization: Basic " + credentials + "\r\n"
                                + "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n"
                                + "Accept-Encoding: gzip, deflate\r\n"
                                + "Accept-Language: en-US,en;q=0.9\r\n"
                                + "\r\n";
-                File.WriteAllText(@"..\resources\GET.txt", reqHeader);
-                EncryptFile(@"..\resources\GET.txt", PublicKey);
-                SendEncryptedFile(@"..\resources\GET.enc");
+                
+                usernameTextBox.Text = Base64Decode(credentials);
+                File.WriteAllText(@"..\resources\POST.txt", reqHeader + reqBody);
+                EncryptFile(@"..\resources\POST.txt", PublicKey);
+                SendEncryptedFile(@"..\resources\POST.enc");
                 SignInButton_Clicked();
             }
         }
-
+        private void passTextBox_TextChanged(object sender, EventArgs e)
+        {
+            passTextBox.UseSystemPasswordChar = true;
+        }
         private void SignUpButton_Click(object sender, EventArgs e)
         {
             SignInButton.Enabled = false;
@@ -458,7 +472,6 @@ namespace ClientStudentVer
 
             PublicKey = (RSA)cert.PublicKey.Key;    // Get public key
             CreateSymmetricKey (PublicKey);
-            EncryptFile(@"..\resources\File.txt", PublicKey);
         }
         private void ReceiveCert()
         {
@@ -576,6 +589,8 @@ namespace ClientStudentVer
             catch (SocketException)
             {
                 Print_log("Unable to connect to server's socket.");
+                SignInButton.Enabled = false;
+                SignUpButton.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -593,6 +608,9 @@ namespace ClientStudentVer
             var plainTextBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
             return System.Convert.ToBase64String(plainTextBytes);
         }
+
+        
+
         public static string Base64Decode(string base64EncodedData)
         {
             var base64EncodedBytes = System.Convert.FromBase64String(base64EncodedData);

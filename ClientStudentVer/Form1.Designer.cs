@@ -104,8 +104,8 @@ namespace ClientStudentVer
             this.passTextBox.Size = new System.Drawing.Size(240, 34);
             this.passTextBox.TabIndex = 7;
             this.passTextBox.Text = "Mật khẩu";
-            this.passTextBox.UseSystemPasswordChar = true;
             this.passTextBox.Click += new System.EventHandler(this.passTextBox_Click);
+            this.passTextBox.TextChanged += new System.EventHandler(this.passTextBox_TextChanged);
             this.passTextBox.Leave += new System.EventHandler(this.passTextBox_Leave);
             // 
             // label5
